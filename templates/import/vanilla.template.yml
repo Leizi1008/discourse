@@ -8,9 +8,9 @@ hooks:
     - exec:
         cd: /etc/service
         cmd:
-          - rm -R unicorn
-          - rm -R nginx
-          - rm -R cron
+          - echo "" > unicorn/run
+          - echo "" > nginx/run
+          - echo "" > cron/run
 
     - exec:
         cd: /etc/runit/3.d
@@ -36,7 +36,7 @@ hooks:
     - exec:
         cmd:
           - mkdir -p /shared/import/mysql/data
-          - apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y nano libmariadbclient-dev mariadb-server
+          - apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y nano libmariadb-dev mariadb-server
           - sed -Ei 's/^log/#&/' /etc/mysql/my.cnf
 
     - file:
@@ -95,10 +95,7 @@ hooks:
             sv stop mysql
           fi
 
-          cd $home
-          echo "The Vanilla import is starting..."
-          echo
-          su discourse -c 'bundle exec ruby script/import_scripts/vanilla.rb'
+          echo "import_vanilla.sh completed"
 
     - exec:
         cd: $home
@@ -110,7 +107,11 @@ hooks:
     - exec:
         cd: $home
         cmd:
-          - echo "gem 'mysql2'" >> Gemfile
+          # Add the gems used in the script
+          - echo "gem 'mysql2'" >> Gemfile 
           - echo "gem 'ruby-bbcode-to-md', :github => 'nlalonde/ruby-bbcode-to-md'" >> Gemfile
           - su discourse -c 'bundle config unset deployment'
           - su discourse -c 'bundle install --no-deployment --path vendor/bundle --jobs 4 --without test development'
+          - service mariadb start
+          # imports the DB into mysql
+          - sh /usr/local/bin/import_flarum_test.sh 
